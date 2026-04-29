@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Dodge</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a2e;
+        }
+        canvas {
+            border: 2px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="game" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+
+        const COLORS = {
+            BLACK: '#000000',
+            WHITE: '#ffffff',
+            RED: '#ff0000',
+            GRAY: '#646464',
+            BLUE: '#0064ff'
+        };
+
+        const PLAYER_SIZE = 50;
+        const PLAYER_SPEED = 8;
+        let playerX = 800 / 2 - PLAYER_SIZE / 2;
+        let playerY = 600 - PLAYER_SIZE - 20;
+
+        const METEOR_SIZE = 40;
+        let meteorSpeed = 5;
+        let meteors = [];
+        let spawnInterval = 800;
+        let lastSpawnTime = 0;
+
+        let score = 0;
+        let gameOver = false;
+        let scoreTimer = 0;
+        let keys = { left: false, right: false };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+            if (e.key === ' ' && gameOver) resetGame();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+        });
+
+        function drawPlayer() {
+            ctx.fillStyle = COLORS.BLUE;
+            ctx.beginPath();
+            ctx.moveTo(playerX + PLAYER_SIZE / 2, playerY);
+            ctx.lineTo(playerX, playerY + PLAYER_SIZE);
+            ctx.lineTo(playerX + PLAYER_SIZE / 4, playerY + PLAYER_SIZE - 10);
+            ctx.lineTo(playerX + PLAYER_SIZE / 2, playerY + PLAYER_SIZE - 5);
+            ctx.lineTo(playerX + PLAYER_SIZE * 3 / 4, playerY + PLAYER_SIZE - 10);
+            ctx.lineTo(playerX + PLAYER_SIZE, playerY + PLAYER_SIZE);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawMeteor(x, y) {
+            ctx.fillStyle = COLORS.GRAY;
+            ctx.beginPath();
+            ctx.arc(x + METEOR_SIZE / 2, y + METEOR_SIZE / 2, METEOR_SIZE / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = COLORS.WHITE;
+            ctx.beginPath();
+            ctx.arc(x + METEOR_SIZE / 3, y + METEOR_SIZE / 3, METEOR_SIZE / 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + METEOR_SIZE * 2 / 3, y + METEOR_SIZE / 4, METEOR_SIZE / 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function checkCollision(px, py, mx, my) {
+            return px < mx + METEOR_SIZE &&
+                   px + PLAYER_SIZE > mx &&
+                   py < my + METEOR_SIZE &&
+                   py + PLAYER_SIZE > my;
+        }
+
+        function spawnMeteor() {
+            const meteorX = Math.random() * (800 - METEOR_SIZE);
+            meteors.push([meteorX, -METEOR_SIZE]);
+        }
+
+        function resetGame() {
+            gameOver = false;
+            playerX = 800 / 2 - PLAYER_SIZE / 2;
+            playerY = 600 - PLAYER_SIZE - 20;
+            meteors = [];
+            score = 0;
+            meteorSpeed = 5;
+            spawnInterval = 800;
+        }
+
+        function drawText(text, x, y, color, size = 36, center = false) {
+            ctx.fillStyle = color;
+            ctx.font = `${size}px Arial`;
+            ctx.textAlign = center ? 'center' : 'left';
+            ctx.fillText(text, x, y);
+        }
+
+        function gameLoop(timestamp) {
+            if (!gameOver) {
+                if (timestamp - lastSpawnTime > spawnInterval) {
+                    spawnMeteor();
+                    lastSpawnTime = timestamp;
+                }
+
+                if (keys.left && playerX > 0) playerX -= PLAYER_SPEED;
+                if (keys.right && playerX < 800 - PLAYER_SIZE) playerX += PLAYER_SPEED;
+
+                for (let i = meteors.length - 1; i >= 0; i--) {
+                    meteors[i][1] += meteorSpeed;
+
+                    if (meteors[i][1] > 600) {
+                        meteors.splice(i, 1);
+                        score++;
+                    } else if (checkCollision(playerX, playerY, meteors[i][0], meteors[i][1])) {
+                        gameOver = true;
+                    }
+                }
+
+                if (score > 0 && score % 10 === 0) {
+                    meteorSpeed = 5 + Math.floor(score / 10);
+                    spawnInterval = Math.max(200, 800 - Math.floor(score / 2) * 10);
+                }
+            }
+
+            ctx.fillStyle = COLORS.BLACK;
+            ctx.fillRect(0, 0, 800, 600);
+
+            drawPlayer();
+
+            for (const meteor of meteors) {
+                drawMeteor(meteor[0], meteor[1]);
+            }
+
+            drawText(`分數: ${score}`, 10, 40, COLORS.WHITE);
+
+            if (gameOver) {
+                drawText('遊戲結束！按空白鍵重新開始', 400, 300, COLORS.RED, 36, true);
+                drawText(`最終分數: ${score}`, 400, 350, COLORS.WHITE, 36, true);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
